@@ -21,15 +21,20 @@
  *   =getWallet("7cc97c89aed2a2fd9ed7792d48d63f65800c447b";"eaa2dc89aed2a2fd9ed7792d48d63f65800c711a";"bitfinex")    
  *
  * ====================================================================================================================================
- * Version: 0.1 beta 11.10.2017
+ * Version: 0.2 beta 03.12.2017
  */
 
-function getWallet(key,secret,exname) {
-      
+
+function getWallet(key,secret,exname,nc) {
+  
   switch (exname){
-    case 'exmo':   
+    case 'exmo':     
     case 'bittrex':
       var nonce = Math.floor(new Date().getTime()*1000);
+      break;
+      
+    case 'wex':      
+      var nonce = Math.floor(new Date().getTime()/1000);
       break;
       
     case 'bitfinex':
@@ -39,7 +44,7 @@ function getWallet(key,secret,exname) {
   switch (exname){
     case 'exmo': 
       var payload = "nonce="+nonce.toString();    
-      var uri = "http://api.exmo.com/v1/user_info"; 
+      var uri = "http://api.exmo.me/v1/user_info"; 
       break;
       
     case 'bittrex':
@@ -49,6 +54,7 @@ function getWallet(key,secret,exname) {
       break;
       
     case 'bitfinex':
+     // var baseUrl = "https://api.bitfinex.com/v1/balances";  
       var uri =  "https://api.bitfinex.com/v1/balances"; 
       var body = {
         'request' : "/v1/balances",
@@ -56,10 +62,19 @@ function getWallet(key,secret,exname) {
         'options' : {}
       };            
       var payload = Utilities.base64Encode(Utilities.newBlob(JSON.stringify(body)).getDataAsString());
+      break;
+      
+     case 'wex': 
+      var payload = "method=getInfo&nonce="+nonce.toString();    
+      var uri = "https://wex.nz/tapi"; 
+      break;
+  
+  
   }
     
   switch (exname){
-    case 'exmo':         
+    case 'exmo': 
+    case 'wex':   
     case 'bittrex':
       var Sign = Utilities.computeHmacSignature(Utilities.MacAlgorithm.HMAC_SHA_512, payload, secret);  
       break;
@@ -108,6 +123,21 @@ function getWallet(key,secret,exname) {
         contentType: "application/json",
         muteHttpExceptions: true
       }
+      break;
+      
+    case 'wex':   
+      var fetchOptions = {
+        "method":"POST",  
+        "contentType":"application/x-www-form-urlencoded",
+        "headers":{     
+          'Key': key,
+          'Sign': Sign    
+        },
+        "payload": payload
+      };
+      break; 
+      
+      
   }
       
   var jsondata = UrlFetchApp.fetch(uri, fetchOptions);
@@ -134,6 +164,19 @@ function getWallet(key,secret,exname) {
         }   
       
       return ndata;
+
+    case 'wex':       
+      var ndata = []; 
+      var data = parseJSONObject_(JSON.parse(jsondata.getContentText()),"/", "noInherit,noTruncate,replaceDot",includeXPath_, defaultTransform_);    
+      
+      for(var i=0, w = data.length; i<w ;i++ )       
+        for(var j=0, y = data[i].length ; j<y ;j++ ){
+          if (!ndata[j])
+            ndata[j] = [];  
+          ndata[j][i] = data[i][j];           
+        } 
+      
+      return ndata; 
       
     case 'bittrex':
     case 'bitfinex':
